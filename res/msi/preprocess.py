@@ -472,6 +472,7 @@ def init_global_vars(dist_dir, app_name, args):
     g_version = args.version.replace("-", ".")
     if g_version == "":
         g_version = read_process_output("--version")
+    g_version = g_version.replace("-", ".")
     version_pattern = re.compile(r"\d+\.\d+\.\d+.*")
     if not version_pattern.match(g_version):
         print(f"Error: version {g_version} not found in {dist_app}")

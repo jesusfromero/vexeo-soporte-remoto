@@ -1,0 +1,60 @@
+name: VEXEO Auto Update
+
+on:
+  schedule:
+    # Diario a las 05:23 UTC: detecta releases nuevas de rustdesk/rustdesk
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rebuild aunque no haya versión upstream nueva (crea sufijo -N)"
+        type: boolean
+        default: false
+
+# Un solo run a la vez: evita que un schedule y un dispatch solapados calculen
+# la misma versión y hagan push en paralelo a hbb_common y a master/tag.
+concurrency:
+  group: vexeo-autoupdate
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  autoupdate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar VEXEO_PAT
+        env:
+          VEXEO_PAT: ${{ secrets.VEXEO_PAT }}
+        run: |
+          if [ -z "$VEXEO_PAT" ]; then
+            echo "::error::Falta el secret VEXEO_PAT (fine-grained PAT con Contents:RW + Workflows:RW en jesusfromero/rustdesk y Contents:RW en jesusfromero/hbb_common)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.VEXEO_PAT }}
+
+      - name: Ejecutar auto-update
+        env:
+          GH_TOKEN: ${{ secrets.VEXEO_PAT }}
+          VEXEO_PAT: ${{ secrets.VEXEO_PAT }}
+          FORCE: ${{ inputs.force }}
+        run: bash .github/vexeo/autoupdate.sh
+
+      # El fork tiene Issues desactivadas: la notificación de fallo es el email
+      # nativo de GitHub al owner (scheduled-workflow failure) + este resumen.
+      - name: Resumen de fallo
+        if: failure()
+        run: |
+          {
+            echo "## ❌ Auto-update VEXEO falló"
+            echo "Probablemente upstream cambió algún patrón que el kit parchea."
+            echo "Revisa el log de este run y ejecuta en local:"
+            echo '```'
+            echo "cd ~/GitHub/rustdesk && FORCE=true bash .github/vexeo/autoupdate.sh"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,54 @@
+name: VEXEO Release Finalize
+
+# Cuando el build por tag termina, quita el flag prerelease y marca la release
+# como "latest" para que el update check de los clientes (GET /releases/latest)
+# la vea. Se hace al FINAL para que ningún cliente descargue de una release a
+# medio subir.
+#
+# Nota: conclusiones 'cancelled'/'timed_out' NO se finalizan (la release queda
+# en prerelease); el remedio es re-lanzar "Flutter Tag Build", que emite otro
+# evento workflow_run y vuelve a pasar por aquí.
+on:
+  workflow_run:
+    workflows: ["Flutter Tag Build"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: >
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Marcar release como estable y latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.workflow_run.head_branch }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          # En builds disparados por push de tag, head_branch es el nombre del tag.
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?$ ]]; then
+            echo "'$TAG' no es un tag de release VEXEO — nada que hacer."
+            exit 0
+          fi
+          if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "No existe release para el tag $TAG — nada que finalizar."
+            exit 0
+          fi
+          # Con jobs fallidos solo finalizamos si están los instaladores clave.
+          # El kit nombra los assets con el TAG COMPLETO (incluido el sufijo -N),
+          # porque sincroniza tag = Cargo.toml version = env VERSION del workflow.
+          if [[ "$CONCLUSION" == "failure" ]]; then
+            assets=$(gh release view "$TAG" --repo "${{ github.repository }}" --json assets --jq '.assets[].name')
+            for req in "rustdesk-$TAG-x86_64.exe" "rustdesk-$TAG-x86_64.dmg" "rustdesk-$TAG-aarch64.dmg"; do
+              if ! grep -qx "$req" <<< "$assets"; then
+                echo "::warning::Build con fallos y falta el asset $req — la release $TAG se queda en prerelease."
+                exit 0
+              fi
+            done
+          fi
+          gh release edit "$TAG" --repo "${{ github.repository }}" --prerelease=false --latest
+          echo "Release $TAG marcada como latest."
