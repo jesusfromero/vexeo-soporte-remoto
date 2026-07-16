@@ -327,6 +327,37 @@ def main():
           "launchUrl(Uri.parse('https://vexeo.es'));",
           required=False)
 
+    # Servicio de sistema en macOS: los scripts construyen rutas SIN comillas.
+    # Con "VEXEO Soporte Remoto" (con espacios) el shell parte la ruta y el
+    # .plist del servicio nunca se crea → "Instalar" no funciona. Entrecomillamos
+    # las rutas en install.scpt, daemon.plist y update.scpt.
+    _D = "/Library/LaunchDaemons/com.carriez.RustDesk_service.plist"
+    _A = "/Library/LaunchAgents/com.carriez.RustDesk_server.plist"
+    _isc = "src/platform/privileges_scripts/install.scpt"
+    patch(_isc, f'" > {_D} && chown root:wheel {_D};"',
+          f'" > \'{_D}\' && chown root:wheel \'{_D}\';"')
+    patch(_isc, f'" > {_A} && chown root:wheel {_A};"',
+          f'" > \'{_A}\' && chown root:wheel \'{_A}\';"')
+    patch(_isc,
+          '"cp -rf /Users/" & user & "/Library/Preferences/com.carriez.RustDesk/RustDesk.toml /var/root/Library/Preferences/com.carriez.RustDesk/;"',
+          '"cp -rf \'/Users/" & user & "/Library/Preferences/com.carriez.RustDesk/RustDesk.toml\' \'/var/root/Library/Preferences/com.carriez.RustDesk/\';"')
+    patch(_isc,
+          '"cp -rf /Users/" & user & "/Library/Preferences/com.carriez.RustDesk/RustDesk2.toml /var/root/Library/Preferences/com.carriez.RustDesk/;"',
+          '"cp -rf \'/Users/" & user & "/Library/Preferences/com.carriez.RustDesk/RustDesk2.toml\' \'/var/root/Library/Preferences/com.carriez.RustDesk/\';"')
+    patch(_isc, f'"launchctl load -w {_D};"', f'"launchctl load -w \'{_D}\';"')
+    patch("src/platform/privileges_scripts/daemon.plist",
+          "<string>/Applications/RustDesk.app/Contents/MacOS/service</string>",
+          "<string>'/Applications/RustDesk.app/Contents/MacOS/service'</string>")
+    _up = "src/platform/privileges_scripts/update.scpt"
+    patch(_up, 'set unload_service to "launchctl unload -w " & daemon_plist & " || true;"',
+          'set unload_service to "launchctl unload -w " & quoted form of daemon_plist & " || true;"')
+    patch(_up, 'set write_daemon_plist to "echo " & quoted form of daemon_file & " > " & daemon_plist & " && chown root:wheel " & daemon_plist & ";"',
+          'set write_daemon_plist to "echo " & quoted form of daemon_file & " > " & quoted form of daemon_plist & " && chown root:wheel " & quoted form of daemon_plist & ";"')
+    patch(_up, 'set write_agent_plist to "echo " & quoted form of agent_file & " > " & agent_plist & " && chown root:wheel " & agent_plist & ";"',
+          'set write_agent_plist to "echo " & quoted form of agent_file & " > " & quoted form of agent_plist & " && chown root:wheel " & quoted form of agent_plist & ";"')
+    patch(_up, 'set load_service to "launchctl load -w " & daemon_plist & ";"',
+          'set load_service to "launchctl load -w " & quoted form of daemon_plist & ";"')
+
     apply_update_check()
 
     print("== [4/6] Ajustes de CI del fork ==")

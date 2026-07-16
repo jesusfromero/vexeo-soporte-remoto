@@ -7,14 +7,14 @@ on run {daemon_file, agent_file, user, cur_pid, source_dir}
   set check_source to "test -d " & quoted form of source_dir & " || exit 1;"
   set resolve_uid to "uid=$(id -u " & quoted form of user & " 2>/dev/null || true);"
   set unload_agent to "if [ -n \"$uid\" ]; then launchctl bootout gui/$uid " & quoted form of agent_plist & " 2>/dev/null || launchctl bootout user/$uid " & quoted form of agent_plist & " 2>/dev/null || launchctl unload -w " & quoted form of agent_plist & " || true; else launchctl unload -w " & quoted form of agent_plist & " || true; fi;"
-  set unload_service to "launchctl unload -w " & daemon_plist & " || true;"
+  set unload_service to "launchctl unload -w " & quoted form of daemon_plist & " || true;"
   set kill_others to "pids=$(pgrep -x 'RustDesk' | grep -vx " & cur_pid & " || true); if [ -n \"$pids\" ]; then echo \"$pids\" | xargs kill -9 || true; fi;"
 
   set copy_files to "(rm -rf " & quoted form of app_bundle & " && ditto " & quoted form of source_dir & " " & quoted form of app_bundle & " && chown -R " & quoted form of user & ":staff " & quoted form of app_bundle & " && (xattr -r -d com.apple.quarantine " & quoted form of app_bundle & " || true)) || exit 1;"
 
-  set write_daemon_plist to "echo " & quoted form of daemon_file & " > " & daemon_plist & " && chown root:wheel " & daemon_plist & ";"
-  set write_agent_plist to "echo " & quoted form of agent_file & " > " & agent_plist & " && chown root:wheel " & agent_plist & ";"
-  set load_service to "launchctl load -w " & daemon_plist & ";"
+  set write_daemon_plist to "echo " & quoted form of daemon_file & " > " & quoted form of daemon_plist & " && chown root:wheel " & quoted form of daemon_plist & ";"
+  set write_agent_plist to "echo " & quoted form of agent_file & " > " & quoted form of agent_plist & " && chown root:wheel " & quoted form of agent_plist & ";"
+  set load_service to "launchctl load -w " & quoted form of daemon_plist & ";"
   set agent_label_cmd to "agent_label=$(basename " & quoted form of agent_plist & " .plist);"
   set bootstrap_agent to "if [ -n \"$uid\" ]; then launchctl bootstrap gui/$uid " & quoted form of agent_plist & " 2>/dev/null || launchctl bootstrap user/$uid " & quoted form of agent_plist & " 2>/dev/null || launchctl load -w " & quoted form of agent_plist & " || true; else launchctl load -w " & quoted form of agent_plist & " || true; fi;"
   set kickstart_agent to "if [ -n \"$uid\" ]; then launchctl kickstart -k gui/$uid/$agent_label 2>/dev/null || launchctl kickstart -k user/$uid/$agent_label 2>/dev/null || true; fi;"
