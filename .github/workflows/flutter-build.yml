@@ -44,7 +44,7 @@ env:
   # 2. Update the `VCPKG_COMMIT_ID` in `ci.yml` and `playground.yml`.
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836" # 2025.01.13, got "/opt/artifacts/vcpkg/vcpkg: No such file or directory" with latest version
-  VERSION: "1.4.9-4"
+  VERSION: "1.4.9-5"
   NDK_VERSION: "r28c"
   #signing keys env variable checks
   ANDROID_SIGNING_KEY: "${{ secrets.ANDROID_SIGNING_KEY }}"
@@ -657,13 +657,6 @@ jobs:
       matrix:
         job:
           - {
-              target: x86_64-apple-darwin,
-              os: macos-15-intel, #macos-latest or macos-14 use M1 now, https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#:~:text=14%20GB-,macos%2Dlatest%20or%20macos%2D14,-The%20macos%2Dlatestlabel
-              extra-build-args: "",
-              arch: x86_64,
-              vcpkg-triplet: x64-osx,
-            }
-          - {
               target: aarch64-apple-darwin,
               os: macos-14,
               # extra-build-args: "--disable-flutter-texture-render", # disable this for mac, because we see a lot of users reporting flickering both on arm and x64, and we can not confirm if texture rendering has better performance if htere is no vram, https://github.com/rustdesk/rustdesk/issues/6296
@@ -816,10 +809,13 @@ jobs:
             sed -i -e "s/MACOSX_DEPLOYMENT_TARGET = [0-9]*.[0-9]*;/MACOSX_DEPLOYMENT_TARGET = ${MIN_MACOS_VERSION};/" flutter/macos/Runner.xcodeproj/project.pbxproj
           fi
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
-          # VEXEO: renombrar la .app para que el DMG y el instalador muestren la marca
+          # VEXEO: renombrar la .app y el ejecutable a la marca (instalador, servicio y agente)
           RELDIR="./flutter/build/macos/Build/Products/Release"
           app="$(ls -d "$RELDIR"/*.app 2>/dev/null | head -1)"
-          [ -n "$app" ] && [ "$app" != "$RELDIR/VEXEO Soporte Remoto.app" ] && mv "$app" "$RELDIR/VEXEO Soporte Remoto.app"
+          if [ -n "$app" ] && [ "$app" != "$RELDIR/VEXEO Soporte Remoto.app" ]; then mv "$app" "$RELDIR/VEXEO Soporte Remoto.app"; fi
+          APP="$RELDIR/VEXEO Soporte Remoto.app"
+          EXE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist" 2>/dev/null || echo rustdesk)"
+          if [ "$EXE" != "VEXEO Soporte Remoto" ] && [ -f "$APP/Contents/MacOS/$EXE" ]; then mv "$APP/Contents/MacOS/$EXE" "$APP/Contents/MacOS/VEXEO Soporte Remoto"; /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable 'VEXEO Soporte Remoto'" "$APP/Contents/Info.plist"; fi
 
       - name: create unsigned dmg
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -879,12 +875,6 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ inputs.upload-artifact }}
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: rustdesk-unsigned-macos-x86_64
-          path: ./
-
       - name: Download Artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
