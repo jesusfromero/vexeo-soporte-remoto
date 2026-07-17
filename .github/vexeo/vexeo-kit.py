@@ -54,11 +54,17 @@ PRIVACY_URL = "https://www.vexeo.es/politica-de-privacidad/"
 # (y se debe) quitar es la MARCA "RustDesk", que es marca registrada y ajena.
 # La clave: el titular se llama "Purslane Tech Pte. Ltd.", no "RustDesk" — se
 # cumple la licencia al 100% sin que la marca aparezca en ningún sitio.
-COPYRIGHT = (
+_COPYRIGHT_BASE = (
     "Copyright © 2026 Purslane Tech Pte. Ltd. "
     f"Modificado por {COMPANY} (2026). Licencia AGPL-3.0, sin garantía. "
-    f"Código fuente: https://github.com/{FORK}"
+    "Código fuente: "
 )
+COPYRIGHT = _COPYRIGHT_BASE + f"https://github.com/{FORK}"
+# En los .xcconfig, "//" ABRE UN COMENTARIO: con la URL completa, Xcode dejaba
+# el valor en "...Código fuente: https:" y se comía la oferta de código que
+# exige la AGPL. No hay forma de escaparlo, así que aquí la URL va sin esquema.
+# Verificado sobre el .app compilado de 1.4.9-8, no por lectura de código.
+COPYRIGHT_XCCONFIG = _COPYRIGHT_BASE + f"github.com/{FORK}"
 
 KIT_SRC = os.path.dirname(os.path.abspath(__file__))
 
@@ -460,7 +466,7 @@ def main():
     # se quiere eliminar) pero SÍ debe conservar a Purslane (AGPL §4).
     patch("flutter/macos/Runner/Configs/AppInfo.xcconfig",
           r"^PRODUCT_COPYRIGHT = .*$",
-          f"PRODUCT_COPYRIGHT = {COPYRIGHT}",
+          f"PRODUCT_COPYRIGHT = {COPYRIGHT_XCCONFIG}",
           is_regex=True)
     # El bundle id REAL sale de aquí, no del xcconfig: en Xcode los build
     # settings del target ganan sobre los del proyecto. Parchear solo el
