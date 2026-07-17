@@ -358,6 +358,24 @@ def main():
     patch(_up, 'set load_service to "launchctl load -w " & daemon_plist & ";"',
           'set load_service to "launchctl load -w " & quoted form of daemon_plist & ";"')
 
+    # ORG: hbb_common pasa a ORG="es.vexeo" (ver autoupdate.sh), así que
+    # get_full_name() = "es.vexeo.<APP_NAME>" y los .plist del servicio deben
+    # llamarse igual. Los scripts hardcodean "com.carriez.RustDesk_*", hay que
+    # cambiarlos A LA VEZ que ORG o el instalador escribiría un nombre distinto
+    # al que comprueba is_installed_daemon() y el servicio no se detectaría.
+    # OJO: NO tocar "com.carriez.rustdesk" (minúscula, AssociatedBundleIdentifiers):
+    # correct_app_name() lo sustituye en runtime por el bundle id real.
+    # Debe ir DESPUÉS del entrecomillado (esos patrones aún llevan com.carriez).
+    for _f in ("install.scpt", "daemon.plist", "agent.plist", "update.scpt", "uninstall.scpt"):
+        _p = f"src/platform/privileges_scripts/{_f}"
+        _c = open(_p, encoding="utf-8").read()
+        _n = _c.count("com.carriez.RustDesk")
+        if _n == 0:
+            fail(f"{_p}: no se encontró 'com.carriez.RustDesk' (¿cambió upstream?)")
+            continue
+        open(_p, "w", encoding="utf-8").write(_c.replace("com.carriez.RustDesk", "es.vexeo.RustDesk"))
+        print(f"  ✓ {_f}: {_n}x com.carriez.RustDesk → es.vexeo.RustDesk")
+
     apply_update_check()
 
     print("== [4/6] Ajustes de CI del fork ==")

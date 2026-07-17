@@ -113,6 +113,12 @@ subs = [
      'pub const RENDEZVOUS_SERVERS: &[&str] = &["rustdesk.vexeo.digital"];'),
     (r'pub const RS_PUB_KEY: &str = "[^"]*";',
      'pub const RS_PUB_KEY: &str = "O7Lw+QX9oN5xKNjSTwO5B5LspsbO7zXPCuBSP0hUIqk=";'),
+    # ORG: se usa en get_full_name() = ORG.APP_NAME → nombra los .plist del
+    # servicio y la carpeta de config. El kit cambia a la vez el prefijo
+    # com.carriez.RustDesk de los scripts; si se toca uno sin el otro, el
+    # instalador escribiría un .plist con nombre distinto al que se comprueba.
+    (r'pub static ref ORG: RwLock<String> = RwLock::new\("com\.carriez"\.to_owned\(\)\);',
+     'pub static ref ORG: RwLock<String> = RwLock::new("es.vexeo".to_owned());'),
 ]
 for pat, rep in subs:
     c, n = re.subn(pat, lambda _m: rep, c)
