@@ -4,6 +4,8 @@
 name: vexeo-ios
 on:
   workflow_dispatch:
+  push:
+    branches: [ios-build]
 
 env:
   RUST_VERSION: "1.75"
